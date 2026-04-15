@@ -17,7 +17,7 @@ TOKEN_LIMIT = 1000  # Daily limit per token type
 
 def check_token_limit(input_tokens=0, output_tokens=0):
     try:
-        with open("data/tokens_records.json", "r", encoding="utf-8") as f:
+        with open("../data/tokens_records.json", "r", encoding="utf-8") as f:
             tokens_data = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         tokens_data = {}
@@ -29,7 +29,7 @@ def check_token_limit(input_tokens=0, output_tokens=0):
     tokens_data[today]["input_tokens"] += input_tokens
     tokens_data[today]["output_tokens"] += output_tokens
 
-    with open("data/tokens_records.json", "w", encoding="utf-8") as f:
+    with open("../data/tokens_records.json", "w", encoding="utf-8") as f:
         json.dump(tokens_data, f, indent=4, ensure_ascii=False)
 
     logging.info(
