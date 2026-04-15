@@ -13,7 +13,7 @@ SEO Master Tool is a professional web application that helps real estate teams a
 
 The app is deployed on **Streamlit Community Cloud** — no installation needed.
 
-👉 [Launch SEO Master Tool](#) *(replace with your Streamlit URL)*
+👉 [Launch SEO Master Tool] https://seo-master-tool.streamlit.app/
 
 > The app may be in sleep mode if inactive. Just click **"Wake up app"** and it'll be ready in seconds.
 
