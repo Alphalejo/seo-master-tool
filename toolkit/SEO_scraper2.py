@@ -36,8 +36,19 @@ def get_seo_data(base_url, max_pages=50, check_broken_links=False):
             # Extract SEO title
             title_tag = soup.find('title')
             title_text = title_tag.text.strip() if title_tag else "No Title Found"
-            results.append({'url': current_url, 'title': title_text, 'length': len(title_text)})
 
+            # Extract meta description
+            desc_tag = soup.find('meta', attrs={'name': 'description'})
+            desc_text = desc_tag['content'].strip() if desc_tag and desc_tag.get('content') else ""
+
+            results.append({
+                'url': current_url,
+                'title': title_text,
+                'length': len(title_text),
+                'description': desc_text,
+                'desc_length': len(desc_text)
+            })
+            
             # Link discovery
             for link in soup.find_all('a', href=True):
                 absolute_url = urljoin(base_url, link['href']).split('#')[0].rstrip('/')
@@ -80,19 +91,10 @@ def get_seo_data(base_url, max_pages=50, check_broken_links=False):
                     final_url = r.url
                     status = r.status_code
 
-                    is_soft_404 = (
-                        status == 200 and (
-                            "404" in r.text[:5000]
-                            or "not found" in r.text[:5000].lower()
-                            or "page not found" in r.text[:5000].lower()
-                        )
-                    )
                     r.close()
-
-                    if status == 404 or is_soft_404:
-                        label = f"{status} (soft)" if is_soft_404 else str(status)
+                    if status == 404:
                         for source in sources:
-                            broken_links.append({'Page': source, 'Broken Link': target, 'Status': label})
+                            broken_links.append({'Page': source, 'Broken Link': target, 'Status': 404})
 
                 except requests.exceptions.ConnectionError:
                     for source in sources:

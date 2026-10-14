@@ -3,7 +3,7 @@ import pandas as pd
 from urllib.parse import urlparse
 from toolkit.SEO_scraper2 import get_seo_data
 from toolkit.SEO_dashboard import show_analytics_dashboard
-from toolkit.SEO_AI import generate_seo_title
+from toolkit.SEO_AI import generate_seo_title_v2, generate_seo_description
 
 from toolkit.compliance_checker import get_state_compliance_info, get_brokerage_compliance_info, us_states, mls_boards, partnerships_brokerage, non_partnerships_brokerage
 
@@ -44,6 +44,10 @@ if 'is_running' not in st.session_state:
     st.session_state['is_running'] = False
 if 'ai_error' not in st.session_state:
     st.session_state['ai_error'] = ""
+if 'seo_title_output' not in st.session_state:
+    st.session_state['seo_title_output'] = ""
+if 'seo_desc_output' not in st.session_state:
+    st.session_state['seo_desc_output'] = ""
 
 # --- APP LAYOUT ---
 st.title("SEO Master Tool")
@@ -102,21 +106,32 @@ with tabs[0]:
     
     if st.session_state['seo_results'] and not st.session_state['is_running']:
         # 2. RESULTS TABLE
-        df_display = pd.DataFrame(st.session_state['seo_results'][1:])  # Skip the homepage for the table since it's duplicated
-        
-        # Helper function to extract page name from URL
+        df_display = pd.DataFrame(st.session_state['seo_results'][1:])
+
         def get_page_name(url):
             path = urlparse(url).path.rstrip('/')
             return path.split('/')[-1].capitalize() if path else "Home"
-            
-        # Apply format and rename columns for better UI
+
         df_display['url'] = df_display['url'].apply(get_page_name)
-        df_display = df_display.rename(columns={'url': 'Page', 'title': 'SEO Title', 'length': 'Chars'})
-        
-        st.table(df_display.style.map(
-            lambda x: 'color: #27ae60;' if 45 <= x <= 60 else 'color: #e74c3c;', 
-            subset=['Chars']
-        ))
+
+        # Duplicate description detection across all pages
+        desc_counts = df_display['description'].value_counts()
+        df_display['Dup'] = df_display['description'].apply(
+            lambda x: '🔴' if x and desc_counts.get(x, 0) > 1 else ('⚠️' if not x else '✅')
+        )
+
+        df_display = df_display.rename(columns={
+            'url': 'Page',
+            'title': 'SEO Title',
+            'length': 'Chars',
+            'description': 'Meta Description',
+            'desc_length': 'Desc Chars'
+        })
+
+        st.table(df_display[['Page', 'SEO Title', 'Chars', 'Meta Description', 'Desc Chars', 'Dup']].style
+            .map(lambda x: 'color: #27ae60;' if 45 <= x <= 60 else 'color: #e74c3c;', subset=['Chars'])
+            .map(lambda x: 'color: #27ae60;' if 120 <= x <= 158 else 'color: #e74c3c;', subset=['Desc Chars'])
+        )
 
         st.divider()
 
@@ -132,28 +147,60 @@ with tabs[0]:
         st.divider()
 
         # 4. AI OPTIMIZER SECTION
-        st.subheader("2. Quick SEO Optimizer")
-        
-        def run_ai_magic():
-            current = st.session_state['seo_draft']
-            if not current:
-                st.session_state['ai_error'] = "Please paste a current SEO title first."
+        def run_generate_title():
+            if not st.session_state.get('ai_page') or not st.session_state.get('ai_agent') or not st.session_state.get('ai_location'):
+                st.session_state['ai_error'] = "Please fill in all three fields."
                 return
             st.session_state['ai_error'] = ""
-            st.session_state['seo_draft'] = generate_seo_title(current_title=current)
+            st.session_state['seo_title_output'] = generate_seo_title_v2(
+                st.session_state['ai_page'],
+                st.session_state['ai_agent'],
+                st.session_state['ai_location']
+            )
 
-        col_draft, col_stat, col_magic = st.columns([3, 1, 1], vertical_alignment="bottom")
+        def run_generate_description():
+            if not st.session_state.get('ai_page') or not st.session_state.get('ai_agent') or not st.session_state.get('ai_location'):
+                st.session_state['ai_error'] = "Please fill in all three fields."
+                return
+            st.session_state['ai_error'] = ""
+            st.session_state['seo_desc_output'] = generate_seo_description(
+                st.session_state['ai_page'],
+                st.session_state['ai_agent'],
+                st.session_state['ai_location']
+            )
 
-        with col_draft:
-            st.text_input("Edit or Generate Title:", key='seo_draft', placeholder="Paste a title or use Magic AI...")
+        st.subheader("2. Quick SEO Optimizer")
 
-        with col_stat:
-            char_len = len(st.session_state['seo_draft'])
-            stat_color = "green" if 45 <= char_len <= 60 else "red"
-            st.markdown(f"**Length:** <span style='color:{stat_color}; font-size:20px;'>{char_len}</span>", unsafe_allow_html=True)
+        col_page, col_agent, col_loc = st.columns(3)
+        with col_page:
+            ai_page = st.text_input("Page Name:", key='ai_page', placeholder="Ex: Featured Properties")
+        with col_agent:
+            ai_agent = st.text_input("Agent / Team Name:", key='ai_agent', placeholder="Ex: Claire Hanssen")
+        with col_loc:
+            ai_location = st.text_input("Location:", key='ai_location', placeholder="Ex: Santa Ynez Valley")
 
-        with col_magic:
-            st.button("Magic AI ✨", on_click=run_ai_magic)
+
+        # Title output
+        col_title_out, col_title_stat, col_title_btn = st.columns([3, 1, 1], vertical_alignment="bottom")
+        with col_title_out:
+            st.text_input("SEO Title:", key='seo_title_output', placeholder="Generated title will appear here...")
+        with col_title_stat:
+            title_len = len(st.session_state['seo_title_output'])
+            title_color = "green" if 40 <= title_len <= 60 else "red"
+            st.markdown(f"**Length:** <span style='color:{title_color}; font-size:20px;'>{title_len}</span>", unsafe_allow_html=True)
+        with col_title_btn:
+            st.button("Generate Title ✨", on_click=run_generate_title)
+
+        # Description output
+        col_desc_out, col_desc_stat, col_desc_btn = st.columns([3, 1, 1], vertical_alignment="bottom")
+        with col_desc_out:
+            st.text_input("Meta Description:", key='seo_desc_output', placeholder="Generated description will appear here...")
+        with col_desc_stat:
+            desc_len = len(st.session_state['seo_desc_output'])
+            desc_color = "green" if 120 <= desc_len <= 158 else "red"
+            st.markdown(f"**Length:** <span style='color:{desc_color}; font-size:20px;'>{desc_len}</span>", unsafe_allow_html=True)
+        with col_desc_btn:
+            st.button("Generate Description ✨", on_click=run_generate_description)
 
         if st.session_state.get('ai_error'):
             st.warning(st.session_state['ai_error'])
