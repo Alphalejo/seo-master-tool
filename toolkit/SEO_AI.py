@@ -3,8 +3,7 @@ import json
 import logging
 from datetime import date
 from dotenv import load_dotenv
-from google import genai
-from google.genai import types
+from google import genai 
 
 # Configure logging
 logging.basicConfig(
