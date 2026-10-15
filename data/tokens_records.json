@@ -1,0 +1,18 @@
+{
+    "2026-04-08": {
+        "input_tokens": 265,
+        "output_tokens": 21
+    },
+    "2026-04-09": {
+        "input_tokens": 136,
+        "output_tokens": 13
+    },
+    "2026-10-13": {
+        "input_tokens": 0,
+        "output_tokens": 0
+    },
+    "2026-10-14": {
+        "input_tokens": 0,
+        "output_tokens": 0
+    }
+}
