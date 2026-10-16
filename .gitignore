@@ -14,9 +14,6 @@ env/
 .env
 *.env
 
-# Data files (token records)
-data/
-
 # Streamlit
 .streamlit/secrets.toml
 

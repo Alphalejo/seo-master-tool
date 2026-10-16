@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import date
 from dotenv import load_dotenv
-from google import genai 
+from google import genai
 
 # Configure logging
 logging.basicConfig(
@@ -86,6 +86,7 @@ TOKEN_LIMIT = 1000  # Daily limit per token type
 TOKENS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'tokens_records.json')
 
 def check_token_limit(input_tokens=0, output_tokens=0):
+    os.makedirs(os.path.dirname(os.path.abspath(TOKENS_FILE)), exist_ok=True)
     try:
         with open(TOKENS_FILE, "r", encoding="utf-8") as f:
             tokens_data = json.load(f)

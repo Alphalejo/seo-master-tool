@@ -8,21 +8,40 @@ def show_analytics_dashboard(data, broken_links=None):
         return
 
     df = pd.DataFrame(data)
-    df['Status'] = df['length'].apply(lambda x: 'Optimized' if 45 <= x <= 60 else 'Needs Review')
+    df['title_status'] = df['length'].apply(lambda x: 'Optimized' if 45 <= x <= 60 else 'Needs Review')
 
+    # --- Description categorization ---
+    def desc_status(row):
+        if not row['description']:
+            return 'Missing'
+        elif row['desc_length'] < 120:
+            return 'Too Short'
+        elif row['desc_length'] > 158:
+            return 'Too Long'
+        else:
+            return 'Optimized'
+
+    df['desc_status'] = df.apply(desc_status, axis=1)
+
+    # Duplicate detection
+    desc_counts = df[df['description'] != '']['description'].value_counts()
+    duplicate_count = int((desc_counts > 1).sum())
+    total_count = len(df)
+
+    # --- ROW 1: Title charts ---
+    st.markdown("#### 🏷️ SEO Titles")
     col1, col2 = st.columns(2)
 
     with col1:
-        # SEO Health Donut Chart
         fig_pie = px.pie(
-            df, names='Status', title="Overall SEO Health",
-            color='Status', color_discrete_map={'Optimized': '#27ae60', 'Needs Review': '#e74c3c'},
+            df, names='title_status', title="Overall Title Health",
+            color='title_status',
+            color_discrete_map={'Optimized': '#27ae60', 'Needs Review': '#e74c3c'},
             hole=0.4
         )
         st.plotly_chart(fig_pie, use_container_width=True)
 
     with col2:
-        # Title Length Distribution
         fig_hist = px.histogram(
             df, x="length", nbins=15, title="Title Length Distribution",
             labels={'length': 'Character Count'}, color_discrete_sequence=['#3498db']
@@ -31,20 +50,55 @@ def show_analytics_dashboard(data, broken_links=None):
         fig_hist.add_vline(x=60, line_dash="dash", line_color="green", annotation_text="Max (60)")
         st.plotly_chart(fig_hist, use_container_width=True)
 
-    # Broken Links Chart (only if broken link check was run)
+    # --- ROW 2: Description charts ---
+    st.markdown("#### 📝 Meta Descriptions")
+    col3, col4, col5 = st.columns(3)
+
+    with col3:
+        fig_desc = px.pie(
+            df, names='desc_status', title="Description Health",
+            color='desc_status',
+            color_discrete_map={
+                'Optimized': '#27ae60',
+                'Too Short': '#f39c12',
+                'Too Long': '#e67e22',
+                'Missing': '#e74c3c'
+            },
+            hole=0.4
+        )
+        st.plotly_chart(fig_desc, use_container_width=True)
+
+    with col4:
+        fig_desc_hist = px.histogram(
+            df[df['description'] != ''], x="desc_length", nbins=15,
+            title="Description Length Distribution",
+            labels={'desc_length': 'Character Count'},
+            color_discrete_sequence=['#9b59b6']
+        )
+        fig_desc_hist.add_vline(x=120, line_dash="dash", line_color="green", annotation_text="Min (120)")
+        fig_desc_hist.add_vline(x=158, line_dash="dash", line_color="green", annotation_text="Max (158)")
+        st.plotly_chart(fig_desc_hist, use_container_width=True)
+
+    with col5:
+        fig_dup = px.pie(
+            names=['Unique', 'Duplicated'],
+            values=[total_count - duplicate_count, duplicate_count],
+            title="Duplicate Descriptions",
+            color_discrete_sequence=['#27ae60', '#e74c3c'],
+            hole=0.4
+        )
+        st.plotly_chart(fig_dup, use_container_width=True)
+
+    # --- Broken links chart ---
     if broken_links is not None:
         st.divider()
+        st.markdown("#### 🔗 Link Health")
         df_broken = pd.DataFrame(broken_links) if broken_links else pd.DataFrame(columns=['Status'])
-
-        # Count all internal links to calculate healthy ones
-        total_checked = len(set(link for _, link in [(r['Page'], r['Broken Link']) for r in broken_links])) if broken_links else 0
-        total_pages = len(data)
 
         status_counts = df_broken['Status'].value_counts().reset_index()
         status_counts.columns = ['Status', 'Count']
 
-        # Add healthy links row
-        healthy_count = total_pages - len(df_broken)
+        healthy_count = total_count - len(df_broken)
         if healthy_count > 0:
             status_counts = pd.concat([
                 pd.DataFrame([{'Status': 'Healthy', 'Count': healthy_count}]),
@@ -54,8 +108,7 @@ def show_analytics_dashboard(data, broken_links=None):
         color_map = {
             'Healthy': '#27ae60',
             '404': '#e74c3c',
-            '404 (soft)': '#e67e22',
-            'Timeout': '#f39c12',
+            'Timeout': "#ffef16",
             'Connection Error': '#8e44ad',
             'Redirect Loop': '#c0392b',
         }
